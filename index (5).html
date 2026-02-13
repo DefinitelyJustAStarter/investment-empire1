@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Investment Empire</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Inter:wght@400;600&display=swap" rel="stylesheet">    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg: #0a0e1a;
+            --card: #1a1f35;
+            --primary: #00ff88;
+            --accent: #00d4ff;
+            --text: #e0e6ff;
+            --danger: #ff0055;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        
+        h1 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3em;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+            margin: 40px 0 20px;
+        }
+        
+        .login-box, .modal-content {
+            background: var(--card);
+            padding: 40px;
+            border-radius: 15px;
+            border: 2px solid var(--primary);
+            max-width: 450px;
+            margin: 100px auto;
+        }
+        
+        .form-group { margin-bottom: 20px; }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--primary);
+            font-weight: 600;
+            font-size: 0.9em;
+            text-transform: uppercase;
+        }
+        
+        input, select, button {
+            width: 100%;
+            padding: 12px;
+            background: var(--bg);
+            border: 2px solid rgba(0, 255, 136, 0.3);
+            border-radius: 8px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 1em;
+        }
+        
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
+        button {
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            color: var(--bg);
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            text-transform: uppercase;
+            transition: transform 0.2s;
+        }
+        
+        button:hover { transform: scale(1.05); }
+        button.secondary { background: var(--card); color: var(--primary); border: 2px solid var(--primary); }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+        
+        .tab {
+            padding: 12px 25px;
+            background: var(--card);
+            border: 2px solid transparent;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .tab:hover { border-color: var(--primary); }
+        .tab.active { background: var(--primary); color: var(--bg); }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .card {
+            background: var(--card);
+            padding: 25px;
+            border-radius: 12px;
+            border: 2px solid rgba(0, 255, 136, 0.2);
+            transition: all 0.3s;
+        }
+        
+        .card:hover { border-color: var(--primary); transform: translateY(-5px); }
+        .card.highlight { border-color: var(--accent); box-shadow: 0 0 20px rgba(0, 212, 255, 0.3); }
+        
+        .stat { text-align: center; padding: 20px; }
+        .stat-number { font-size: 2.5em; color: var(--primary); font-weight: 700; }
+        .stat-label { font-size: 0.9em; opacity: 0.7; margin-top: 5px; }
+        
+        .asset-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: var(--bg);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .asset-item:hover { background: rgba(0, 255, 136, 0.1); }
+        
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 1000; align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        .modal-content { margin: 20px; max-height: 80vh; overflow-y: auto; }
+        
+        .hidden { display: none !important; }
+        .error { color: var(--danger); text-align: center; margin-top: 10px; }
+        
+        @media (max-width: 768px) {
+            h1 { font-size: 2em; }
+            .grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen">
+        <div class="login-box">
+            <h1 style="font-size: 2em; margin: 0 0 30px;">Investment Empire</h1>
+            <div class="form-group">
+                <label>Enter Your Password</label>
+                <input type="password" id="loginPassword" placeholder="Enter your unique password" onkeypress="if(event.key==='Enter')login()">
+            </div>
+            <button onclick="login()">Login</button>
+            <div id="loginError" class="error hidden"></div>
+            <div style="text-align: center; margin-top: 20px;">
+                <a href="#" onclick="resetGame(); return false;" style="color: var(--accent); text-decoration: none; font-size: 0.85em;">Reset Game Data</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="mainApp" class="hidden">
+        <div class="container">
+            <h1>Investment Empire</h1>
+            <div style="text-align: center; margin-bottom: 30px;">
+                <span style="color: var(--accent);">Logged in as: <strong id="currentUserDisplay"></strong></span>
+                <button onclick="logout()" class="secondary" style="width: auto; margin-left: 20px; padding: 8px 20px;">Logout</button>
+            </div>
+
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('portfolio')">My Portfolio</div>
+                <div class="tab" onclick="switchTab('leaderboard')">Leaderboard</div>
+                <div class="tab" onclick="switchTab('market')">Market</div>
+                <div class="tab" onclick="switchTab('transactions')">History</div>
+                <div class="tab hidden" id="adminTab" onclick="switchTab('admin')">Admin</div>
+            </div>
+
+            <!-- Portfolio Tab -->
+            <div id="portfolio" class="tab-content active">
+                <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                    <div class="card stat">
+                        <div class="stat-number" id="myBalance">$0</div>
+                        <div class="stat-label">Balance</div>
+                    </div>
+                    <div class="card stat">
+                        <div class="stat-number" id="myDailyIncome">$0</div>
+                        <div class="stat-label">Daily Income</div>
+                    </div>
+                    <div class="card stat">
+                        <div class="stat-number" id="myRank">#1</div>
+                        <div class="stat-label">Rank</div>
+                    </div>
+                </div>
+
+                <div class="card" style="margin: 20px 0;">
+                    <h2 style="color: var(--primary); margin-bottom: 20px;">My Assets</h2>
+                    <div id="myAssetsList" style="font-size: 2em; text-align: center; padding: 20px;">No assets yet</div>
+                    
+                    <div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
+                        <button onclick="openBuyModal()" style="flex: 1; min-width: 200px;">🛒 Buy Assets</button>
+                        <button onclick="openSellModal()" class="secondary" style="flex: 1; min-width: 200px;">💰 Sell Assets</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Leaderboard Tab -->
+            <div id="leaderboard" class="tab-content">
+                <h2 style="color: var(--primary); margin-bottom: 20px; text-align: center;">🏆 Leaderboard</h2>
+                <div id="leaderboardGrid" class="grid"></div>
+            </div>
+
+            <!-- Market Tab -->
+            <div id="market" class="tab-content">
+                <div id="marketContent"></div>
+            </div>
+
+            <!-- Transactions Tab -->
+            <div id="transactions" class="tab-content">
+                <div class="card">
+                    <h2 style="color: var(--primary); margin-bottom: 20px;">Transaction History</h2>
+                    <div id="transactionsList" style="max-height: 500px; overflow-y: auto;"></div>
+                </div>
+            </div>
+
+            <!-- Admin Tab -->
+            <div id="admin" class="tab-content">
+                <div class="card">
+                    <h2 style="color: var(--primary); margin-bottom: 20px;">Admin Controls</h2>
+                    
+                    <button onclick="processDailyPayments()" style="margin-bottom: 10px;">💰 Process Daily Payments</button>
+                    <button onclick="applyWeeklyTax()" class="secondary" style="margin-bottom: 10px;">📉 Weekly Tax ($75k)</button>
+                    
+                    <div style="margin-top: 30px; padding: 20px; background: var(--bg); border-radius: 8px;">
+                        <h3 style="color: var(--accent); margin-bottom: 15px;">Share Instructions</h3>
+                        <p style="margin-bottom: 10px;">To share this game with friends:</p>
+                        <ol style="margin-left: 20px; line-height: 1.8;">
+                            <li>Upload this HTML file to a free hosting service like <a href="https://neocities.org" target="_blank" style="color: var(--accent);">Neocities</a>, <a href="https://pages.github.com" target="_blank" style="color: var(--accent);">GitHub Pages</a>, or <a href="https://www.netlify.com" target="_blank" style="color: var(--accent);">Netlify</a></li>
+                            <li>Share the URL with your friends</li>
+                            <li>Send each friend their password from the list below</li>
+                        </ol>
+                    </div>
+                    
+                    <div id="passwordList" style="padding: 20px; background: var(--bg); border-radius: 8px; margin-top: 20px;"></div>
+                    
+                    <div style="margin-top: 30px; padding: 20px; background: rgba(0, 212, 255, 0.1); border-radius: 8px; border: 2px solid var(--accent);">
+                        <h3 style="color: var(--accent); margin-bottom: 15px;">🔐 Admin Credentials</h3>
+                        <div style="margin-bottom: 10px;">
+                            <strong>Shourya:</strong> <code style="color: var(--primary); font-size: 1.1em;">AdminEmpire2025!</code>
+                        </div>
+                        <div>
+                            <strong>Rohan:</strong> <code style="color: var(--primary); font-size: 1.1em;">RohanAdmin2025@</code>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Buy Modal -->
+    <div id="buyModal" class="modal">
+        <div class="modal-content">
+            <h2 style="color: var(--primary); margin-bottom: 20px;">Buy Assets</h2>
+            <div id="buyOptions"></div>
+            <button onclick="closeBuyModal()" class="secondary" style="margin-top: 20px;">Close</button>
+        </div>
+    </div>
+
+    <!-- Sell Modal -->
+    <div id="sellModal" class="modal">
+        <div class="modal-content">
+            <h2 style="color: var(--primary); margin-bottom: 20px;">Sell Assets (50% value)</h2>
+            <div id="sellOptions"></div>
+            <button onclick="closeSellModal()" class="secondary" style="margin-top: 20px;">Close</button>
+        </div>
+    </div>
+
+    <script>
+        const ASSETS = {
+            properties: [
+                {emoji:'🏢',name:'Apartment',price:50000,daily:0,tax:75000},
+                {emoji:'🏚️',name:'Fixer-Upper',price:200000,daily:500,tax:60000},
+                {emoji:'🏠',name:'House',price:500000,daily:1500,tax:45000},
+                {emoji:'🏘️',name:'Mansion',price:1500000,daily:5000,tax:30000},
+                {emoji:'🏰',name:'Castle',price:5000000,daily:20000,tax:15000}
+            ],
+            vehicles: [
+                {emoji:'🚗',name:'Car',price:100000,weekly:2000},
+                {emoji:'🏎️',name:'Sports Car',price:350000,weekly:8000},
+                {emoji:'🚁',name:'Helicopter',price:800000,weekly:18000},
+                {emoji:'🛥️',name:'Yacht',price:2000000,weekly:45000},
+                {emoji:'🛩️',name:'Jet',price:5000000,weekly:110000}
+            ],
+            businesses: [
+                {emoji:'☕',name:'Café',price:250000,daily:3000},
+                {emoji:'🍕',name:'Restaurant',price:600000,daily:8000},
+                {emoji:'🏪',name:'Store',price:400000,daily:5000},
+                {emoji:'🎢',name:'Theme Park',price:3000000,weekly:80000},
+                {emoji:'🏭',name:'Factory',price:8000000,weekly:220000},
+                {emoji:'🏙️',name:'City',price:50000000,weekly:1500000,tax:0}
+            ],
+            pets: [
+                {emoji:'🐶',name:'Dog',price:300000,power:'Steal asset <$1M'},
+                {emoji:'🐱',name:'Cat',price:300000,power:'Steal $200k'},
+                {emoji:'🐉',name:'Dragon',price:2000000,power:'2x everyone\'s tax'},
+                {emoji:'🦄',name:'Unicorn',price:3000000,power:'Free asset <$2M'}
+            ]
+        };
+
+        let gameData = {
+            players: {},
+            transactions: [],
+            lastDaily: null,
+            admins: ['Shourya','Rohan']
+        };
+        
+        let currentUser = null;
+        let isAdmin = false;
+
+        function resetGame() {
+            if (confirm('This will reset all game data including player accounts and balances. Are you sure?')) {
+                localStorage.removeItem('investmentEmpireData');
+                alert('Game data reset! The page will now reload.');
+                location.reload();
+            }
+        }
+
+        function loadData() {
+            const saved = localStorage.getItem('investmentEmpireData');
+            if (saved) {
+                try {
+                    gameData = JSON.parse(saved);
+                    // Check if admin accounts exist, if not, reinitialize
+                    if (!gameData.players['Shourya'] || !gameData.players['Rohan']) {
+                        console.log('Admin accounts missing, reinitializing...');
+                        initDefaultPlayers();
+                    }
+                } catch(e) {
+                    console.log('Error loading data, initializing defaults');
+                    initDefaultPlayers();
+                }
+            } else {
+                initDefaultPlayers();
+            }
+        }
+
+        function initDefaultPlayers() {
+            const playerData = {
+                'Vihaan': { password: 'Empire347!Vee', balance: 347000, email: 'vihaan@example.com' },
+                'Ayaan': { password: 'Invest150@Aya', balance: 150000, email: 'ayaan@example.com' },
+                'Aniv': { password: 'Wealth1M#Aniv', balance: 1060000, email: 'aniv@example.com' },
+                'Arjun': { password: 'Capital771$Arj', balance: 771000, email: 'arjun@example.com' },
+                'Shreshta': { password: 'Money924!Shr', balance: 924000, email: 'shreshta@example.com' },
+                'Anvi': { password: 'Trade775@Anvi', balance: 775000, email: 'anvi@example.com' },
+                'Sriya': { password: 'Start250#Sri', balance: 250000, email: 'sriya@example.com' },
+                'Kushi': { password: 'Invest682$Kus', balance: 682000, email: 'kushi@example.com' },
+                'Sarayu': { password: 'Asset252!Sar', balance: 252000, email: 'sarayu@example.com' },
+                'Nimay': { password: 'Fund788@Nim', balance: 788000, email: 'nimay@example.com' },
+                'Ishika': { password: 'Elite50M#Ish', balance: 50000000, email: 'ishika@example.com' }
+            };
+            
+            Object.entries(playerData).forEach(([name, data]) => {
+                gameData.players[name] = {
+                    balance: data.balance,
+                    assets: name==='Ishika'?['🏙️']:['🏢'],
+                    password: data.password,
+                    email: data.email
+                };
+            });
+            
+            // Add admin accounts
+            gameData.players['Shourya'] = {
+                balance: 0,
+                assets: [],
+                password: 'AdminEmpire2025!',
+                email: 'shourya@example.com',
+                isAdmin: true
+            };
+            
+            gameData.players['Rohan'] = {
+                balance: 0,
+                assets: [],
+                password: 'RohanAdmin2025@',
+                email: 'rohan@example.com',
+                isAdmin: true
+            };
+            
+            saveData();
+        }
+
+        function saveData() {
+            if (window.database) {
+                window.database.ref('gameData').set(gameData).catch(err => {
+                    console.error('Firebase save error:', err);
+                    localStorage.setItem('investmentEmpireData', JSON.stringify(gameData));
+                });
+            } else {
+                localStorage.setItem('investmentEmpireData', JSON.stringify(gameData));
+            }
+        }
+
+        function login() {
+            const pass = document.getElementById('loginPassword').value;
+            
+            // Find player by password
+            let foundUser = null;
+            for (const [name, data] of Object.entries(gameData.players)) {
+                if (data.password === pass) {
+                    foundUser = name;
+                    break;
+                }
+            }
+            
+            if (!foundUser) {
+                document.getElementById('loginError').textContent = 'Invalid password';
+                document.getElementById('loginError').classList.remove('hidden');
+                return;
+            }
+            
+            currentUser = foundUser;
+            isAdmin = gameData.players[foundUser].isAdmin || gameData.admins.includes(foundUser);
+            
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            document.getElementById('currentUserDisplay').textContent = foundUser;
+            
+            if (isAdmin) document.getElementById('adminTab').classList.remove('hidden');
+            
+            render();
+        }
+
+        function logout() {
+            currentUser = null;
+            isAdmin = false;
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('loginError').classList.add('hidden');
+            document.getElementById('loginPassword').value = '';
+            document.getElementById('adminTab').classList.add('hidden');
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById(tab).classList.add('active');
+            
+            if (tab === 'leaderboard') renderLeaderboard();
+            if (tab === 'market') renderMarket();
+            if (tab === 'transactions') renderTransactions();
+            if (tab === 'admin') renderAdmin();
+        }
+
+        function render() {
+            const player = gameData.players[currentUser];
+            
+            // Don't render portfolio for admin-only accounts
+            if (player.isAdmin && player.balance === 0) {
+                document.getElementById('portfolio').innerHTML = `
+                    <div class="card" style="text-align: center; padding: 60px;">
+                        <h2 style="color: var(--accent); margin-bottom: 20px;">👑 Admin Account</h2>
+                        <p style="opacity: 0.7;">You're logged in as an administrator. Use the Admin tab to manage the game.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Portfolio stats
+            document.getElementById('myBalance').textContent = '$' + (player.balance/1000).toFixed(0) + 'k';
+            
+            const daily = calculateDailyIncome(player.assets);
+            document.getElementById('myDailyIncome').textContent = '$' + daily.toLocaleString();
+            
+            const rank = Object.entries(gameData.players)
+                .filter(([name, data]) => !data.isAdmin || data.balance > 0)
+                .sort((a,b) => b[1].balance - a[1].balance)
+                .findIndex(([name]) => name === currentUser) + 1;
+            document.getElementById('myRank').textContent = '#' + rank;
+            
+            // Assets
+            document.getElementById('myAssetsList').textContent = player.assets.join(' ') || 'No assets yet';
+        }
+
+        function calculateDailyIncome(assets) {
+            let total = 0;
+            assets.forEach(emoji => {
+                Object.values(ASSETS).forEach(category => {
+                    const asset = category.find(a => a.emoji === emoji);
+                    if (asset?.daily) total += asset.daily;
+                });
+            });
+            return total;
+        }
+
+        function renderLeaderboard() {
+            const grid = document.getElementById('leaderboardGrid');
+            const sorted = Object.entries(gameData.players)
+                .filter(([name, data]) => !data.isAdmin || data.balance > 0)
+                .sort((a,b) => b[1].balance - a[1].balance);
+            
+            grid.innerHTML = sorted.map(([name, data], i) => `
+                <div class="card ${name===currentUser?'highlight':''}">
+                    <div style="font-size: 1.5em; margin-bottom: 10px;">
+                        ${i<3 ? ['🥇','🥈','🥉'][i] : `#${i+1}`} ${name}
+                    </div>
+                    <div style="font-size: 1.8em; color: var(--accent); font-weight: 700;">
+                        $${(data.balance/1000).toFixed(0)}k
+                    </div>
+                    <div style="font-size: 1.5em; margin-top: 10px;">
+                        ${data.assets.join(' ')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderMarket() {
+            const content = document.getElementById('marketContent');
+            let html = '';
+            
+            Object.entries(ASSETS).forEach(([category, items]) => {
+                html += `<div class="card" style="margin-bottom: 20px;">
+                    <h2 style="color: var(--primary); margin-bottom: 15px; text-transform: capitalize;">${category}</h2>`;
+                
+                items.forEach(asset => {
+                    const income = asset.daily ? `+$${asset.daily}/day` : 
+                                   asset.weekly ? `+$${asset.weekly}/week` :
+                                   asset.power || '';
+                    html += `
+                        <div class="asset-item">
+                            <div>
+                                <span style="font-size: 1.5em; margin-right: 10px;">${asset.emoji}</span>
+                                <strong>${asset.name}</strong>
+                                <div style="font-size: 0.9em; color: var(--primary);">${income}</div>
+                            </div>
+                            <div style="font-size: 1.2em; font-weight: 700; color: var(--accent);">
+                                $${(asset.price/1000).toFixed(0)}k
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+            });
+            
+            content.innerHTML = html;
+        }
+
+        function renderTransactions() {
+            const list = document.getElementById('transactionsList');
+            if (!gameData.transactions.length) {
+                list.innerHTML = '<div style="text-align:center;opacity:0.5;padding:40px;">No transactions yet</div>';
+                return;
+            }
+            
+            list.innerHTML = gameData.transactions.slice().reverse().map(t => `
+                <div style="padding: 12px; margin-bottom: 10px; background: var(--bg); border-radius: 8px; border-left: 3px solid var(--accent);">
+                    <div style="font-size: 0.85em; color: var(--accent); margin-bottom: 5px;">
+                        ${new Date(t.time).toLocaleString()}
+                    </div>
+                    <div>${t.desc}</div>
+                </div>
+            `).join('');
+        }
+
+        function openBuyModal() {
+            const player = gameData.players[currentUser];
+            let html = '';
+            
+            Object.values(ASSETS).forEach(category => {
+                category.forEach(asset => {
+                    if (player.balance >= asset.price) {
+                        const income = asset.daily ? `+$${asset.daily}/day` : 
+                                       asset.weekly ? `+$${asset.weekly}/week` :
+                                       asset.power || '';
+                        html += `
+                            <div class="asset-item" onclick="buyAsset('${asset.emoji}', ${asset.price}, '${asset.name}')">
+                                <div>
+                                    <span style="font-size: 1.5em; margin-right: 10px;">${asset.emoji}</span>
+                                    <strong>${asset.name}</strong>
+                                    <div style="font-size: 0.9em; color: var(--primary);">${income}</div>
+                                </div>
+                                <div style="font-size: 1.2em; font-weight: 700; color: var(--accent);">
+                                    $${(asset.price/1000).toFixed(0)}k
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+            });
+            
+            document.getElementById('buyOptions').innerHTML = html || '<p style="text-align:center;opacity:0.5;">Not enough funds for any assets</p>';
+            document.getElementById('buyModal').classList.add('active');
+        }
+
+        function closeBuyModal() {
+            document.getElementById('buyModal').classList.remove('active');
+        }
+
+        function buyAsset(emoji, price, name) {
+            const player = gameData.players[currentUser];
+            player.balance -= price;
+            player.assets.push(emoji);
+            
+            addTransaction(`${currentUser} bought ${emoji} ${name} for $${price.toLocaleString()}`);
+            saveData();
+            render();
+            closeBuyModal();
+        }
+
+        function openSellModal() {
+            const player = gameData.players[currentUser];
+            if (!player.assets.length) {
+                alert('You have no assets to sell');
+                return;
+            }
+            
+            let html = '';
+            player.assets.forEach((emoji, index) => {
+                let asset = null;
+                Object.values(ASSETS).forEach(category => {
+                    const found = category.find(a => a.emoji === emoji);
+                    if (found) asset = found;
+                });
+                
+                if (asset) {
+                    const sellPrice = Math.floor(asset.price * 0.5);
+                    html += `
+                        <div class="asset-item" onclick="sellAsset(${index}, ${sellPrice}, '${asset.name}')">
+                            <div>
+                                <span style="font-size: 1.5em; margin-right: 10px;">${emoji}</span>
+                                <strong>${asset.name}</strong>
+                            </div>
+                            <div style="font-size: 1.2em; font-weight: 700; color: var(--primary);">
+                                +$${(sellPrice/1000).toFixed(0)}k
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+            
+            document.getElementById('sellOptions').innerHTML = html;
+            document.getElementById('sellModal').classList.add('active');
+        }
+
+        function closeSellModal() {
+            document.getElementById('sellModal').classList.remove('active');
+        }
+
+        function sellAsset(index, price, name) {
+            const player = gameData.players[currentUser];
+            const emoji = player.assets[index];
+            player.assets.splice(index, 1);
+            player.balance += price;
+            
+            addTransaction(`${currentUser} sold ${emoji} ${name} for $${price.toLocaleString()}`);
+            saveData();
+            render();
+            closeSellModal();
+        }
+
+        function addTransaction(desc) {
+            gameData.transactions.push({ time: Date.now(), desc });
+        }
+
+        function processDailyPayments() {
+            if (!confirm('Process daily payments for all players?')) return;
+            
+            Object.entries(gameData.players).forEach(([name, player]) => {
+                const income = calculateDailyIncome(player.assets);
+                player.balance += income;
+                if (income > 0) addTransaction(`${name} received daily income: $${income.toLocaleString()}`);
+            });
+            
+            gameData.lastDaily = Date.now();
+            addTransaction('Daily payments processed');
+            saveData();
+            render();
+            alert('Daily payments processed!');
+        }
+
+        function applyWeeklyTax() {
+            if (!confirm('Apply $75k weekly tax to all players?')) return;
+            
+            Object.entries(gameData.players).forEach(([name, player]) => {
+                // Check for special tax rates from properties
+                let tax = 75000;
+                if (player.assets.includes('🏙️')) tax = 0;
+                else if (player.assets.includes('🏰')) tax = 15000;
+                else if (player.assets.includes('🏘️')) tax = 30000;
+                else if (player.assets.includes('🏠')) tax = 45000;
+                else if (player.assets.includes('🏚️')) tax = 60000;
+                
+                player.balance -= tax;
+                addTransaction(`${name} paid weekly tax: $${tax.toLocaleString()}`);
+            });
+            
+            addTransaction('Weekly tax applied to all players');
+            saveData();
+            render();
+            alert('Weekly tax applied!');
+        }
+
+        function renderAdmin() {
+            // Display all player passwords
+            const passwordList = document.getElementById('passwordList');
+            let html = '<div style="margin-top: 20px;"><h3 style="color: var(--accent); margin-bottom: 15px;">Player Passwords (Email these to your friends)</h3>';
+            
+            Object.entries(gameData.players).forEach(([name, data]) => {
+                if (!data.isAdmin) {
+                    html += `
+                        <div style="padding: 12px; margin-bottom: 8px; background: var(--bg); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong>${name}</strong>
+                                <div style="font-size: 0.9em; opacity: 0.7;">${data.email}</div>
+                            </div>
+                            <div style="font-family: monospace; color: var(--primary); font-size: 1.1em;">
+                                ${data.password}
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+            
+            html += '</div>';
+            passwordList.innerHTML = html;
+        }
+
+        // Auto-load on startup
+        window.addEventListener('load', loadData);
+    </script>
+</body>
+</html>
